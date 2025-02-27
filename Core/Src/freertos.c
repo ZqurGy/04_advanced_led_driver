@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "bsp_led_driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,6 +57,32 @@ const osThreadAttr_t defaultTask_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
+
+/*********************Link to bsp_driver_t's os_delay_ms_t*********************/
+led_status_t os_delay_ms_zz (const uint32_t); /* my own's function delay ms */
+
+os_delay_ms_t os_delay_ms = 
+{
+    .pf_os_delay_ms = os_delay_ms_zz,
+};
+
+/******************Link to bsp_led_driver_t's led_operations_t*****************/
+led_status_t led_on_zz  (void); /* my own's function led on  */
+led_status_t led_off_zz (void); /* my own's function led off */
+
+led_operations_t led_ops = 
+{
+    .pf_led_on  = led_on_zz,
+    .pf_led_off = led_off_zz,
+};
+
+/******************Link to bsp_led_driver_t's time_base_ms_t******************/
+led_status_t get_time_base_ms_zz (uint32_t *const);
+
+time_base_ms_t time_base_ms = 
+{
+    .pf_get_time_base_ms = get_time_base_ms_zz,
+};
 
 /* USER CODE END FunctionPrototypes */
 
@@ -93,7 +119,9 @@ void MX_FREERTOS_Init(void)
 
     /* Create the thread(s) */
     /* creation of defaultTask */
-    defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+    defaultTaskHandle = osThreadNew(StartDefaultTask, 
+                                    NULL, 
+                                    &defaultTask_attributes);
 
     /* USER CODE BEGIN RTOS_THREADS */
     /* add threads, ... */
@@ -115,9 +143,13 @@ void StartDefaultTask(void *argument)
 {
     /* USER CODE BEGIN StartDefaultTask */
     /* Infinite loop */
+    printf("hello world \r\n");
+    bsp_led_driver_t led_test1;
+    led_driver_inst(&led_test1, &os_delay_ms, &led_ops, &time_base_ms);
+    // const bsp_led_driver_t led_test2;
+    // led_driver_inst(&led_test1, (const os_delay_ms_t*)&led_test2, (const led_operations_t*)&led_test2, (const time_base_ms_t*)&led_test2);
     for (;;)
     {
-        printf("hello world \r\n");
         osDelay(1);
     }
     /* USER CODE END StartDefaultTask */
@@ -126,4 +158,30 @@ void StartDefaultTask(void *argument)
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 
+led_status_t os_delay_ms_zz (const uint32_t ms)
+{
+    DEBUG_OUT("Info: Enter os_delay_ms_zz!\n");
+    printf("delay %d ms \r\n", ms);
+    return LED_OK;
+}
+
+led_status_t led_on_zz (void) 
+{
+    DEBUG_OUT("Info: Enter led_on_zz!\n");
+    return LED_OK;
+}
+
+led_status_t led_off_zz (void) 
+{
+    DEBUG_OUT("Info: Enter led_off_zz!\n");
+    return LED_OK;
+}
+
+led_status_t get_time_base_ms_zz (uint32_t *const time_base)
+{
+    DEBUG_OUT("Info: Enter get_time_base_ms_zz!\n");
+
+    *time_base = 1000;
+    return LED_OK;
+}
 /* USER CODE END Application */

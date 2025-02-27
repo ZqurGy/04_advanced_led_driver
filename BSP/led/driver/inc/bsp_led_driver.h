@@ -9,7 +9,7 @@
  * - stdio.h
  * - stdint.h
  *
- * @author ZhuangZhong | R&D Dept. | EternalChip, Inc.(Gmbh)
+ * @author ZhuangZhong | R&D Dept. | xxxxxx, Inc.(Gmbh)
  *
  * @brief BSP layer's Advanced LED driver for STM32F4xx
  *
@@ -38,7 +38,14 @@
 #define INITED             (0x01)   /* LED driver initialized                */
 #define UNINITED           (0x00)   /* LED driver not initialized            */
 
-#define OS_SUPPORTING             /* Define to enable OS supporting features */
+#define OS_SUPPORTING               /* switch of enable OS supporting        */
+#define DEBUG_ON                    /* swtich of enable debug                */
+
+#ifdef DEBUG_ON
+#define DEBUG_OUT(X)    printf(X)   /* Debug output macro                    */
+#else
+#define DEBUG_OUT(X)
+#endif
 
 typedef enum
 {
@@ -51,20 +58,26 @@ typedef enum
 
 typedef enum
 {
-    LED_OK                =    0,     /* Operation completed successfully.   */
-    LED_ERROR             =    1,     /* Run-time error without case matched */
-    LED_ERRORTIMEOUT      =    2,     /* Operation failed with timeout       */
-    LED_ERRORRESOURCE     =    3,     /* Resource not available.             */
-    LED_ERRORPARAMETER    =    4,     /* Parameter error.                    */
-    LED_ERRORNOMEMORY     =    5,     /* Out of memory.                      */
-    LED_ERRORISR          =    6,     /* Not allowed in ISR context          */
-    LED_STATUS_NUM              ,     /* Number of led status                */
-    LED_RESERVED          = 0xFF,     /* Reserved                            */
+    LED_OK                =    0,   /* Operation completed successfully.     */
+    LED_ERROR             =    1,   /* Run-time error without case matched   */
+    LED_ERRORTIMEOUT      =    2,   /* Operation failed with timeout         */
+    LED_ERRORRESOURCE     =    3,   /* Resource not available.               */
+    LED_ERRORPARAMETER    =    4,   /* Parameter error.                      */
+    LED_ERRORNOMEMORY     =    5,   /* Out of memory.                        */
+    LED_ERRORISR          =    6,   /* Not allowed in ISR context            */
+    LED_STATUS_NUM              ,   /* Number of led status                  */
+    LED_RESERVED          = 0xFF,   /* Reserved                              */
 } led_status_t;
 //******************************** Defines **********************************//
 
 
 //******************************** Declaring ********************************//
+
+typedef struct
+{
+    /* Function to delay in milliseconds */
+    led_status_t (*pf_os_delay_ms)       (const uint32_t); 
+} os_delay_ms_t;
 
 typedef struct
 {
@@ -77,12 +90,6 @@ typedef struct
     /* Function to get the time base in milliseconds */
     led_status_t (*pf_get_time_base_ms) (uint32_t *const); 
 } time_base_ms_t;
-
-typedef struct
-{
-    /* Function to delay in milliseconds */
-    led_status_t (*pf_os_delay_ms)       (const uint32_t); 
-} os_delay_ms_t;
 
 typedef led_status_t (*pf_led_control_t) (
                                        const uint32_t ,   //     Cycle time[ms]
@@ -102,25 +109,40 @@ typedef struct
     proportion_t                       proportion_on_off;
 
     /***************Target of internal IOs**************/
-    /* The APIs from Core layer                        */
-    led_operations_t                    *p_led_opes_inst;
-    time_base_ms_t                  *p_time_base_ms_inst;
 #ifdef OS_SUPPORTING
     /* The APIs from OS layer                          */
-    os_delay_ms_t                    *p_os_delay_ms_inst;
+    const os_delay_ms_t              *p_os_delay_ms_inst;
 #endif // End of OS_SUPPORTING
+    /* The APIs from Core layer                        */
+    const led_operations_t              *p_led_opes_inst;
+    const time_base_ms_t            *p_time_base_ms_inst;
 
     /**************Target of enternal APIs**************/
     pf_led_control_t                    pf_led_controler;
 
 } bsp_led_driver_t;
 
+/**
+ * @brief Instantiate the target of bsp_led_driver.
+ * 
+ * Steps:
+ * 1. Add the Core layer's APIs into bsp_led_driver instance.
+ * 2. Add the OS layer's APIs into bsp_led_driver instance.
+ *  
+ * @param[in] self        : Pointer to the target of handler.
+ * @param[in] os_delay    : Pointer to the os_delay_interface.
+ * @param[in] led_ops     : Pointer to the led_operations_interface.
+ * @param[in] time_base   : Pointer to the time_base_interface.
+ * 
+ * @return led_handler_status_t : Status of the function.
+ * 
+ * */
 led_status_t led_driver_inst(
-                            const bsp_led_driver_t   *const      self,
-                            const led_operations_t   *const   led_ops,
+                                  bsp_led_driver_t   *const      self,
 #ifdef OS_SUPPORTING
                             const os_delay_ms_t      *const  os_delay,
 #endif // End of OS_SUPPORTING
+                            const led_operations_t   *const   led_ops,
                             const time_base_ms_t     *const time_base
                             );
 //******************************** Declaring ********************************//
