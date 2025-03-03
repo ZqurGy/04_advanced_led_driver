@@ -59,7 +59,7 @@ const osThreadAttr_t defaultTask_attributes = {
 /* USER CODE BEGIN FunctionPrototypes */
 
 /*********************Link to bsp_driver_t's os_delay_ms_t*********************/
-led_status_t os_delay_ms_zz (const uint32_t); /* my own's function delay ms */
+led_status_t os_delay_ms_zz (const uint32_t); /* my own's function delay_ms   */
 
 os_delay_ms_t os_delay_ms = 
 {
@@ -67,8 +67,8 @@ os_delay_ms_t os_delay_ms =
 };
 
 /******************Link to bsp_led_driver_t's led_operations_t*****************/
-led_status_t led_on_zz  (void); /* my own's function led on  */
-led_status_t led_off_zz (void); /* my own's function led off */
+led_status_t led_on_zz  (void); /* my own's function led_on                   */
+led_status_t led_off_zz (void); /* my own's function led_off                  */
 
 led_operations_t led_ops = 
 {
@@ -77,7 +77,8 @@ led_operations_t led_ops =
 };
 
 /******************Link to bsp_led_driver_t's time_base_ms_t******************/
-led_status_t get_time_base_ms_zz (uint32_t *const);
+/* my own's function get_time_base in milliseconds                           */
+led_status_t get_time_base_ms_zz (uint32_t *const); 
 
 time_base_ms_t time_base_ms = 
 {
@@ -143,11 +144,11 @@ void StartDefaultTask(void *argument)
 {
     /* USER CODE BEGIN StartDefaultTask */
     /* Infinite loop */
+    /* unit test for led driver         */
     printf("hello world \r\n");
     bsp_led_driver_t led_test1;
     led_driver_inst(&led_test1, &os_delay_ms, &led_ops, &time_base_ms);
-    // const bsp_led_driver_t led_test2;
-    // led_driver_inst(&led_test1, (const os_delay_ms_t*)&led_test2, (const led_operations_t*)&led_test2, (const time_base_ms_t*)&led_test2);
+    led_test1.pf_led_controler(&led_test1, 10, 5, PROPORTION_ON_OFF_1_1);
     for (;;)
     {
         osDelay(1);
@@ -160,26 +161,26 @@ void StartDefaultTask(void *argument)
 
 led_status_t os_delay_ms_zz (const uint32_t ms)
 {
-    DEBUG_OUT("Info: Enter os_delay_ms_zz!\n");
+    DEBUG_OUT("Info: Enter os_delay_ms_zz!\r\n");
     printf("delay %d ms \r\n", ms);
     return LED_OK;
 }
 
 led_status_t led_on_zz (void) 
 {
-    DEBUG_OUT("Info: Enter led_on_zz!\n");
+    DEBUG_OUT("Info: Enter led_on_zz!\r\n");
     return LED_OK;
 }
 
 led_status_t led_off_zz (void) 
 {
-    DEBUG_OUT("Info: Enter led_off_zz!\n");
+    DEBUG_OUT("Info: Enter led_off_zz!\r\n");
     return LED_OK;
 }
 
 led_status_t get_time_base_ms_zz (uint32_t *const time_base)
 {
-    DEBUG_OUT("Info: Enter get_time_base_ms_zz!\n");
+    DEBUG_OUT("Info: Enter get_time_base_ms_zz!\r\n");
 
     *time_base = 1000;
     return LED_OK;

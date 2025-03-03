@@ -73,6 +73,8 @@ typedef enum
 
 //******************************** Declaring ********************************//
 
+typedef struct bsp_led_driver_s bsp_led_driver_t;
+
 typedef struct
 {
     /* Function to delay in milliseconds */
@@ -92,11 +94,12 @@ typedef struct
 } time_base_ms_t;
 
 typedef led_status_t (*pf_led_control_t) (
-                                       const uint32_t ,   //     Cycle time[ms]
-                                       const uint32_t ,   // Blink times[times]
-                                       const proportion_t //  proportion_on_off
+                              bsp_led_driver_t *const, //  Pointer to itself
+                        const uint32_t               , //     Cycle time[ms]
+                        const uint32_t               , // Blink times[times]
+                        const proportion_t             //  proportion_on_off
                                          );
-typedef struct
+typedef struct bsp_led_driver_s
 {
     /******************Target of Status*****************/
     uint32_t                                   is_inited;
@@ -123,11 +126,13 @@ typedef struct
 } bsp_led_driver_t;
 
 /**
- * @brief Instantiate the target of bsp_led_driver.
+ * @brief the constructor of bsp_led_driver_t.
  * 
  * Steps:
- * 1. Add the Core layer's APIs into bsp_led_driver instance.
- * 2. Add the OS layer's APIs into bsp_led_driver instance.
+ * 1. Link the target of internal IOs.
+ *  1-1. Add the Core layer's APIs into bsp_led_driver instance.
+ *  1-2. Add the OS layer's APIs into bsp_led_driver instance.
+ * 2. Initialize the target of enternal requirement.
  *  
  * @param[in] self        : Pointer to the target of handler.
  * @param[in] os_delay    : Pointer to the os_delay_interface.
