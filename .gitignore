@@ -27,3 +27,4 @@ JLinkLog.txt
 *.dbgconf
 
 .vscode
+04_advanced_led_driver.code-workspace

@@ -48,8 +48,8 @@ static led_status_t led_blink(bsp_led_driver_t *const self)
 
     // 1. check if the target has been initialized.
     if (
-        NULL     == self             ||
-        UNINITED == self->is_inited
+        NULL     == self                  ||
+        LED_NOT_INITED == self->is_inited
        )
     {
         DEBUG_OUT("Error: The driver has not been initialized!\r\n");
@@ -99,11 +99,11 @@ static led_status_t led_blink(bsp_led_driver_t *const self)
             {
                 if (start_cycyle_time >= led_toggle_time)
                 {
-                    self->p_led_opes_inst->pf_led_off();
+                    self->p_led_opes->pf_led_off();
                 }
                 else
                 {
-                    self->p_led_opes_inst->pf_led_on();
+                    self->p_led_opes->pf_led_on();
                 }
             }
         }
@@ -140,8 +140,8 @@ static led_status_t led_control (
     /******************0.check target status******************/
     // 0-1. check if the target has been initialized.
     if ( 
-        NULL     == self             ||
-        UNINITED == self->is_inited  
+        NULL     == self                 ||
+        LED_NOT_INITED == self->is_inited  
        )
     {
         // 0-2. if the target has not been initialized, return error.
@@ -198,11 +198,11 @@ static led_status_t led_driver_init (bsp_led_driver_t *const self)
         return ret;
     }
 
-    self->p_led_opes_inst->pf_led_off();
+    self->p_led_opes->pf_led_off();
     // self->p_led_opes_inst->pf_led_on();
-    self->p_os_delay_ms_inst->pf_os_delay_ms(0x5a5a5a5a);
+    self->p_os_delay->pf_os_delay_ms(0x5a5a5a5a);
     uint32_t time_base = 0;
-    self->p_time_base_ms_inst->pf_get_time_base_ms(&time_base);
+    self->p_time_base->pf_get_time_base_ms(&time_base);
     printf("time_base = %d \r\n", time_base);
 
     return ret;
@@ -228,10 +228,10 @@ static led_status_t led_driver_init (bsp_led_driver_t *const self)
 led_status_t led_driver_inst (
                                   bsp_led_driver_t   *const      self,
 #ifdef OS_SUPPORTING
-                            const os_delay_ms_t      *const  os_delay,
+                            const os_delay_t      *const  os_delay,
 #endif // End of OS_SUPPORTING
                             const led_operations_t   *const   led_ops,
-                            const time_base_ms_t     *const time_base
+                            const time_base_t     *const time_base
                              )
 {
     led_status_t ret = LED_OK;
@@ -253,7 +253,7 @@ led_status_t led_driver_inst (
     } 
 
     /******************2.Check the Resources******************/
-    if (INITED == self->is_inited)
+    if (LED_INITED == self->is_inited)
     {
         DEBUG_OUT("Error: The driver has been initialized!\r\n");
         ret = LED_ERRORRESOURCE;
@@ -261,9 +261,11 @@ led_status_t led_driver_inst (
     }
 
     /************3.Link the target of internal IOs************/
-    self->p_os_delay_ms_inst  =  os_delay;
-    self->p_led_opes_inst     =   led_ops;
-    self->p_time_base_ms_inst = time_base;
+#ifdef OS_SUPPORTING
+    self->p_os_delay  =  os_delay;
+#endif // End of OS_SUPPORTING
+    self->p_led_opes     =   led_ops;
+    self->p_time_base = time_base;
 
     /*****4.Initialize the target of enternal requirement*****/
     self->cycle_time_ms     =            0x5a5a5a5a;
@@ -279,14 +281,14 @@ led_status_t led_driver_inst (
     {
         DEBUG_OUT("Error: led_driver_init failed!\r\n");
 
-        self->p_os_delay_ms_inst  = NULL;
-        self->p_led_opes_inst     = NULL;
-        self->p_time_base_ms_inst = NULL;
+        self->p_os_delay  = NULL;
+        self->p_led_opes     = NULL;
+        self->p_time_base = NULL;
 
         return ret;
     }
 
-    self->is_inited = INITED;
+    self->is_inited = LED_INITED;
     DEBUG_OUT("Info: led_driver_inst success!\r\n");
 
     return ret;

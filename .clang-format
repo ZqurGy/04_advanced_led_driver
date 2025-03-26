@@ -136,7 +136,7 @@ BraceWrapping:
   AfterStruct:     true
   AfterUnion:      true
   AfterExternBlock: true
-  BeforeCatch:     false
+  BeforeCatch:     true
   BeforeElse:      true
   BeforeLambdaBody: false
   BeforeWhile:     false
@@ -149,7 +149,7 @@ BreakBeforeBinaryOperators: None
 # 概念声明前是否换行, 建议Always
 BreakBeforeConceptDeclarations: Always
 # 大括号换行风格,Custom即可, 具体值可参考上方文档
-BreakBeforeBraces: Custom
+BreakBeforeBraces: Allman
 # 继承列表括号前换行, false即可
 BreakBeforeInheritanceComma: false
 # 是否将整个继承列表换行

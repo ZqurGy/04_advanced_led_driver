@@ -19,6 +19,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
+#include "queue.h"
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
@@ -26,6 +27,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bsp_led_driver.h"
+#include "bsp_led_handler.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,32 +60,373 @@ const osThreadAttr_t defaultTask_attributes = {
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 
-/*********************Link to bsp_driver_t's os_delay_ms_t*********************/
-led_status_t os_delay_ms_zz (const uint32_t); /* my own's function delay_ms   */
+/**********************unit test for led driver -- begin********************/
+/**
+ * @brief  Simulated OS delay function for unit testing
+ * @param[in]  ms : Delay duration in milliseconds
+ * @retval LED_OK Always returns success status
+ */
+led_status_t os_delay_ms_zz (const uint32_t ms)
+{
+    DEBUG_OUT("Info: Enter os_delay_ms_zz!\r\n");
+    printf("delay %d ms \r\n", ms);
+    return LED_OK;
+}
 
-os_delay_ms_t os_delay_ms = 
+os_delay_t os_delay_ms = 
 {
     .pf_os_delay_ms = os_delay_ms_zz,
 };
 
-/******************Link to bsp_led_driver_t's led_operations_t*****************/
-led_status_t led_on_zz  (void); /* my own's function led_on                   */
-led_status_t led_off_zz (void); /* my own's function led_off                  */
-
+/**
+ * @brief  Simulated LED on function for unit testing
+ * @retval LED_OK Always returns success status
+ */
+led_status_t led_on_zz (void) 
+{
+    DEBUG_OUT("Info: Enter led_on_zz!\r\n");
+    return LED_OK;
+}
+/**
+ * @brief  Simulated LED off function for unit testing
+ * @retval LED_OK Always returns success status
+ */
+led_status_t led_off_zz (void) 
+{
+    DEBUG_OUT("Info: Enter led_off_zz!\r\n");
+    return LED_OK;
+}
 led_operations_t led_ops = 
 {
     .pf_led_on  = led_on_zz,
     .pf_led_off = led_off_zz,
 };
 
-/******************Link to bsp_led_driver_t's time_base_ms_t******************/
-/* my own's function get_time_base in milliseconds                           */
-led_status_t get_time_base_ms_zz (uint32_t *const); 
+/**
+ * @brief  Simulated time base getter function for unit testing
+ * @param[out] time_base Pointer to store the time base value
+ * @retval LED_OK Always returns success status
+ */
+led_status_t get_time_base_ms_zz (uint32_t *const time_base)
+{
+    DEBUG_OUT("Info: Enter get_time_base_ms_zz!\r\n");
 
-time_base_ms_t time_base_ms = 
+    *time_base = 1000;
+    return LED_OK;
+}
+time_base_t time_base_ms = 
 {
     .pf_get_time_base_ms = get_time_base_ms_zz,
 };
+
+/**
+ * @brief  Unit test for bsp_led_driver_t.
+ * @param  None
+ * @retval None
+ */
+void Test_led_driver (void)
+{
+    led_status_t ret = LED_OK;
+    bsp_led_driver_t led_test1;
+    bsp_led_driver_t led_test2;
+    ret = led_driver_inst(&led_test1, 
+                          &os_delay_ms, 
+                          &led_ops, 
+                          &time_base_ms);
+    if ( LED_OK != ret )
+    {
+        DEBUG_OUT("Error: Construct led_test1 failed!\r\n");
+    }
+    else
+    {
+        DEBUG_OUT("Info: Construct led_test1 success!\r\n");
+    }
+
+    ret = led_driver_inst(&led_test2, 
+                          &os_delay_ms, 
+                          &led_ops, 
+                          &time_base_ms);
+    if ( LED_OK != ret )
+    {
+        DEBUG_OUT("Error: Construct led_test2 failed!\r\n");
+    }
+    else
+    {
+        DEBUG_OUT("Info: Construct led_test2 success!\r\n");
+    }
+
+    ret = led_test1.pf_led_controler(&led_test1, 5, 5, PROPORTION_ON_OFF_1_1);
+    if ( LED_OK != ret )
+    {
+        DEBUG_OUT("Error: led_test1 execute led_control failed!\r\n");
+    }
+    else
+    {
+        DEBUG_OUT("Info: led_test1 Execute led_control success!\r\n");
+    }
+
+    ret = led_test2.pf_led_controler(&led_test2, 2, 5, PROPORTION_ON_OFF_1_1);
+    if ( LED_OK != ret )
+    {
+        DEBUG_OUT("Error: led_test2 Execute led_control failed!\r\n");
+    }
+    else
+    {
+        DEBUG_OUT("Info: led_test2 Execute led_control success!\r\n");
+    }
+}
+/**********************unit test for led driver -- end**********************/
+
+/**********************unit test for led handler -- begin*******************/
+
+/**
+ * @brief  Simulated OS delay function for handler unit testing
+ * @param[in] delay_ms : Delay duration in milliseconds
+ * @retval HANDLER_OK Always returns success status
+ */
+led_handler_status_t os_delay_ms_handler (const uint32_t delay_ms)
+{
+    DEBUG_OUT("Info: Enter os_delay_ms_handler!\r\n");
+    return HANDLER_OK;
+}
+
+handler_os_delay_t os_delay_handler = 
+{
+    .pf_os_delay_ms = os_delay_ms_handler,
+};
+
+/* OS queue create */
+led_handler_status_t os_queue_create_handler (
+                                            uint32_t const        item_num,
+                                            uint32_t const       item_size,
+                                            void   **const p_queue_handler
+                                             )
+{
+    led_handler_status_t ret = HANDLER_OK;
+    DEBUG_OUT("Info: Enter os_queue_create_handler!\r\n");
+
+    QueueHandle_t queue_handler = xQueueCreate(item_num, item_size);
+    if ( NULL == queue_handler )
+    {
+        DEBUG_OUT("Error: Create queue failed!\r\n");
+        ret = HANDLER_ERRORRESOURCE;
+    }
+    else 
+    {
+        *p_queue_handler = queue_handler;
+    }
+    return ret;
+}
+
+/* OS queue put    */
+led_handler_status_t os_queue_put_handler  (
+                                        void    *const p_queue_handler,
+                                        void    *const          p_item,
+                                        uint32_t const         timeout
+                                           )
+{
+    led_handler_status_t ret = HANDLER_OK;
+    DEBUG_OUT("Info: Enter pf_os_queue_put!\r\n");
+
+    if ( NULL == p_queue_handler  ||
+         NULL == p_item           ||
+         timeout > portMAX_DELAY
+       )
+    {
+        DEBUG_OUT("Error: Invalid queue handler!\r\n");
+        ret = HANDLER_ERRORPARAMETER;
+        return ret;
+    }
+
+    if ( pdTRUE != xQueueSend( (QueueHandle_t)p_queue_handler,
+                               (void *       )         p_item,
+                               (TickType_t   )        timeout
+                             )
+       )
+    {
+        DEBUG_OUT("Error: Send queue failed!\r\n");
+        ret = HANDLER_ERRORRESOURCE;
+    }
+
+    return ret;
+}
+/* OS queue get    */
+led_handler_status_t os_queue_get_handler  (
+                                        void    *const p_queue_handler,
+                                        void    *const           p_meg,
+                                        uint32_t const         timeout
+                                           )
+{
+    led_handler_status_t ret = HANDLER_OK;
+    DEBUG_OUT("Info: Enter pf_os_queue_get!\r\n");
+
+    if ( NULL == p_queue_handler  ||
+         NULL == p_meg            ||
+         timeout > portMAX_DELAY
+       )
+    {
+        DEBUG_OUT("Error: Invalid queue handler!\r\n");
+        ret = HANDLER_ERRORPARAMETER;
+        return ret;
+    }
+
+    if ( pdTRUE != xQueueReceive( (QueueHandle_t)p_queue_handler,
+                                  (void *       )         p_meg,
+                                  (TickType_t   )        timeout
+                                )
+       )
+    {
+        DEBUG_OUT("Error: Receive queue failed!\r\n");
+        ret = HANDLER_ERRORRESOURCE;
+    }
+
+    return ret;
+}
+
+/* OS queue delete */
+led_handler_status_t os_queue_delete_handler (
+                                        void    *const p_queue_handler
+                                             )
+{
+    led_handler_status_t ret = HANDLER_OK;
+    DEBUG_OUT("Info: Enter pf_os_queue_delete!\r\n");
+
+    if ( NULL == p_queue_handler )
+    {
+        DEBUG_OUT("Error: Invalid queue handler!\r\n");
+        ret = HANDLER_ERRORPARAMETER;
+        return ret;
+    }
+
+    vQueueDelete( (QueueHandle_t)p_queue_handler );
+
+    return ret;
+}
+handler_os_queue_t os_queue_handler = 
+{
+    .pf_os_queue_create = os_queue_create_handler,
+    .pf_os_queue_put    =    os_queue_put_handler,
+    .pf_os_queue_get    =    os_queue_get_handler,
+    .pf_os_queue_delete = os_queue_delete_handler,
+};
+
+/* enter critica.                    */
+led_handler_status_t os_critical_enter       (void)
+{
+    led_handler_status_t ret = HANDLER_OK;
+    DEBUG_OUT("Info: Enter pf_os_critical_enter!\r\n");
+
+    vPortEnterCritical();
+
+    return ret;
+}
+/* exit critica.                     */
+led_handler_status_t os_critical_exit        (void)
+{
+    led_handler_status_t ret = HANDLER_OK;
+    DEBUG_OUT("Info: Enter pf_os_critical_enter!\r\n");
+
+    vPortExitCritical();
+
+    return ret;
+}
+handler_os_critical_t os_critical_handler = 
+{
+    .pf_os_critical_enter = os_critical_enter,
+    .pf_os_critical_exit  =  os_critical_exit,
+};
+
+led_handler_status_t get_time_base_ms (uint32_t *const time_stamp)
+{
+    led_handler_status_t ret = HANDLER_OK;
+    DEBUG_OUT("Info: Enter get_time_base_ms!\r\n");
+
+    if ( NULL == time_stamp )
+    {
+        DEBUG_OUT("Error: Parameter error!\r\n");
+        ret = HANDLER_ERRORPARAMETER;
+        return ret;
+    }
+
+    *time_stamp = HAL_GetTick();
+
+    return ret;
+}
+handler_time_base_t time_base_handler = 
+{
+    .pf_get_time_base_ms = get_time_base_ms,
+};
+
+/**
+ * @brief  Unit test for bsp_led_handler_t.
+ * @param  None
+ * @retval None
+ */
+void Test_led_handler (void)
+{
+//******************************** Handler ********************************//
+    led_handler_status_t ret = HANDLER_OK;
+    bsp_led_handler_t handler1;
+    ret = led_handler_inst(&handler1           , 
+                           &os_delay_handler   , 
+                           &os_queue_handler   , 
+                           &os_critical_handler,
+                           &time_base_handler );
+    
+    if ( HANDLER_OK != ret )
+    {
+        DEBUG_OUT("Error: Construct handler failed!\r\n");
+        return;
+    }
+//******************************** Driver *********************************//
+    bsp_led_driver_t led_test1;
+    led_driver_inst(&led_test1, 
+                    &os_delay_ms, 
+                    &led_ops, 
+                    &time_base_ms);
+    led_test1.pf_led_controler(&led_test1, 5, 5, PROPORTION_ON_OFF_1_1);
+
+    bsp_led_driver_t led_test2;
+    led_driver_inst(&led_test2, 
+                    &os_delay_ms, 
+                    &led_ops, 
+                    &time_base_ms);
+    led_test1.pf_led_controler(&led_test2, 8, 7, PROPORTION_ON_OFF_1_1);
+
+    bsp_led_driver_t led_test3;
+    led_driver_inst(&led_test3, 
+                    &os_delay_ms, 
+                    &led_ops, 
+                    &time_base_ms);
+    led_test1.pf_led_controler(&led_test3, 6, 7, PROPORTION_ON_OFF_1_1);
+
+    bsp_led_driver_t led_test4;
+    led_driver_inst(&led_test4, 
+                    &os_delay_ms, 
+                    &led_ops, 
+                    &time_base_ms);
+    led_test1.pf_led_controler(&led_test4, 2, 3, PROPORTION_ON_OFF_1_1);
+//**************************** Intergrated Test ***************************//
+    led_index_t handler_index[4] = { LED_NOT_INITIALIZED };
+    ret = handler1.pf_led_register(&handler1, &led_test1, &handler_index[0]);
+    ret = handler1.pf_led_register(&handler1, &led_test2, &handler_index[1]);
+    ret = handler1.pf_led_register(&handler1, &led_test3, &handler_index[2]);
+    ret = handler1.pf_led_register(&handler1, &led_test4, &handler_index[3]);
+
+    for (uint8_t i = 0; i < 4; i++)
+    {
+        printf("handler_index[%d] = [%d]\r\n", i + 1, handler_index[i]);
+    }
+
+    if ( HANDLER_OK != ret )
+    {
+        DEBUG_OUT("Error: Test handler failed!\r\n");
+        return;
+    }
+    DEBUG_OUT("Info: Test handler success!\r\n");
+}
+
+/**********************unit test for led handler -- begin*******************/
 
 /* USER CODE END FunctionPrototypes */
 
@@ -145,10 +488,10 @@ void StartDefaultTask(void *argument)
     /* USER CODE BEGIN StartDefaultTask */
     /* Infinite loop */
     /* unit test for led driver         */
-    printf("hello world \r\n");
-    bsp_led_driver_t led_test1;
-    led_driver_inst(&led_test1, &os_delay_ms, &led_ops, &time_base_ms);
-    led_test1.pf_led_controler(&led_test1, 10, 5, PROPORTION_ON_OFF_1_1);
+    DEBUG_OUT("Info: StartDefaultTask!\r\n");
+    // Test_led_driver();
+    Test_led_handler();
+
     for (;;)
     {
         osDelay(1);
@@ -159,30 +502,5 @@ void StartDefaultTask(void *argument)
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 
-led_status_t os_delay_ms_zz (const uint32_t ms)
-{
-    DEBUG_OUT("Info: Enter os_delay_ms_zz!\r\n");
-    printf("delay %d ms \r\n", ms);
-    return LED_OK;
-}
 
-led_status_t led_on_zz (void) 
-{
-    DEBUG_OUT("Info: Enter led_on_zz!\r\n");
-    return LED_OK;
-}
-
-led_status_t led_off_zz (void) 
-{
-    DEBUG_OUT("Info: Enter led_off_zz!\r\n");
-    return LED_OK;
-}
-
-led_status_t get_time_base_ms_zz (uint32_t *const time_base)
-{
-    DEBUG_OUT("Info: Enter get_time_base_ms_zz!\r\n");
-
-    *time_base = 1000;
-    return LED_OK;
-}
 /* USER CODE END Application */

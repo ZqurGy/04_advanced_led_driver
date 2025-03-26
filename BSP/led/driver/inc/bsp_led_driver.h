@@ -35,9 +35,6 @@
 
 //******************************** Defines **********************************//
 
-#define INITED             (0x01)   /* LED driver initialized                */
-#define UNINITED           (0x00)   /* LED driver not initialized            */
-
 #define OS_SUPPORTING               /* switch of enable OS supporting        */
 #define DEBUG_ON                    /* swtich of enable debug                */
 
@@ -46,6 +43,12 @@
 #else
 #define DEBUG_OUT(X)
 #endif
+
+typedef enum
+{
+    LED_NOT_INITED     =    0,      /* LED not initialized.                  */
+    LED_INITED         =    1,      /* LED initialized.                      */
+} led_driver_init_t;
 
 typedef enum
 {
@@ -77,9 +80,13 @@ typedef struct bsp_led_driver_s bsp_led_driver_t;
 
 typedef struct
 {
+    /* Function to delay in microsecond  */
+    led_status_t (*pf_os_delay_us)       (const uint32_t); 
     /* Function to delay in milliseconds */
-    led_status_t (*pf_os_delay_ms)       (const uint32_t); 
-} os_delay_ms_t;
+    led_status_t (*pf_os_delay_ms)       (const uint32_t);
+    /* Function to delay in minute       */
+    led_status_t (*pf_os_delay_mm)       (const uint32_t); 
+} os_delay_t;
 
 typedef struct
 {
@@ -89,9 +96,13 @@ typedef struct
 
 typedef struct
 {
+    /* Function to get the time base in microsecond  */
+    led_status_t (*pf_get_time_base_us) (uint32_t *const); 
     /* Function to get the time base in milliseconds */
     led_status_t (*pf_get_time_base_ms) (uint32_t *const); 
-} time_base_ms_t;
+    /* Function to get the time base in minute       */
+    led_status_t (*pf_get_time_base_mm) (uint32_t *const); 
+} time_base_t;
 
 typedef led_status_t (*pf_led_control_t) (
                               bsp_led_driver_t *const, //  Pointer to itself
@@ -102,7 +113,8 @@ typedef led_status_t (*pf_led_control_t) (
 typedef struct bsp_led_driver_s
 {
     /******************Target of Status*****************/
-    uint32_t                                   is_inited;
+    // TBD: need lock
+    led_driver_init_t                          is_inited;
     /**********Target of enternal requirements**********/
     /* The whole time of blink                         */
     uint32_t                               cycle_time_ms;
@@ -114,11 +126,11 @@ typedef struct bsp_led_driver_s
     /***************Target of internal IOs**************/
 #ifdef OS_SUPPORTING
     /* The APIs from OS layer                          */
-    const os_delay_ms_t              *p_os_delay_ms_inst;
+    const os_delay_t                         *p_os_delay;
 #endif // End of OS_SUPPORTING
     /* The APIs from Core layer                        */
-    const led_operations_t              *p_led_opes_inst;
-    const time_base_ms_t            *p_time_base_ms_inst;
+    const led_operations_t                   *p_led_opes;
+    const time_base_t                       *p_time_base;
 
     /**************Target of enternal APIs**************/
     pf_led_control_t                    pf_led_controler;
@@ -145,10 +157,10 @@ typedef struct bsp_led_driver_s
 led_status_t led_driver_inst(
                                   bsp_led_driver_t   *const      self,
 #ifdef OS_SUPPORTING
-                            const os_delay_ms_t      *const  os_delay,
+                            const os_delay_t         *const  os_delay,
 #endif // End of OS_SUPPORTING
                             const led_operations_t   *const   led_ops,
-                            const time_base_ms_t     *const time_base
+                            const time_base_t        *const time_base
                             );
 //******************************** Declaring ********************************//
 
