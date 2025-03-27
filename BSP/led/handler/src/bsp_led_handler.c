@@ -70,30 +70,40 @@ static led_handler_status_t __array_init(
  * @return led_handler_status_t : Status of the function.
  * 
  * */
-static led_status_t led_control (
-                              bsp_led_driver_t *const self             , 
-                        const uint32_t                cycle_time_ms    , 
-                        const uint32_t                blink_times      , 
-                        const proportion_t            proportion_on_off 
-                                )
+static led_handler_status_t handler_led_control (
+                                bsp_led_handler_t *const self             ,
+                          const led_index_t              index            ,
+                          const uint32_t                 cycle_time_ms    , 
+                          const uint32_t                 blink_times      , 
+                          const proportion_t             proportion_on_off 
+                                                )
 {
-    led_status_t ret = LED_OK;
-    DEBUG_OUT("Info: Enter led_control!\r\n");
+    led_handler_status_t ret = HANDLER_OK;
+    DEBUG_OUT("Info: Enter handler_led_control!\r\n");
     /******************0.check target status******************/
-    // 0-1. check if the target has been initialized.
-    if ( 
-        NULL     == self                 ||
-        LED_NOT_INITED == self->is_inited  
+    // 0-1. check if the point is valid.
+    if ( NULL == self                           ||
+         HANDLER_NOT_INITED == self->is_inited
        )
     {
-        // 0-2. if the target has not been initialized, return error.
-        DEBUG_OUT("Error: The driver has not been initialized!\r\n");
-        ret = LED_ERRORRESOURCE;
+        DEBUG_OUT("Error: The handler has not been initialized!\r\n");
+        ret = HANDLER_ERRORRESOURCE;
         return ret;
     }
 
     /***************1.Check the input parameter***************/
-    // 1-1. check if they are valid values.
+    // 1-1. check if the led handler[index] is valid.
+    if ( index < LED_HANDLER_NO_1                    ||
+         index >= MAX_INSTANCE_NUBER                 ||
+         index >= self->instances.led_instance_count
+       )
+    {
+        DEBUG_OUT("Error: The led index is invalid!\r\n");
+        ret = HANDLER_ERRORPARAMETER;
+        return ret;
+    }
+
+    // 1-2. check if they are valid values.
     if (
         (cycle_time_ms     <=  0                   ) ||
         (cycle_time_ms     >= 10000                ) ||
@@ -103,14 +113,24 @@ static led_status_t led_control (
         (proportion_on_off >= PROPORTION_ON_OFF_NUM)
        )
     {
-        // 1-2. if the input parameter is invalid, return error.
         DEBUG_OUT("Error: Parameter error!\r\n");
-        ret = LED_ERRORPARAMETER;
+        ret = HANDLER_ERRORPARAMETER;
     }
 
-    /****************2.add the data in target****************/
+    /***************2.Send event to LED queue*****************/
+    // 2-1. create the event.
+    DEBUG_OUT("Info: Create a event!\r\n");
+    led_event_t led_event = 
+    {
+        .cycle_time_ms     = cycle_time_ms    ,
+        .blink_times       = blink_times      ,
+        .proportion_on_off = proportion_on_off,
+    };
+    // 2-2. send the event to the led queue.
 
-    /*************3. run the operation of target**************/
+
+
+
 
     return ret;
 }
@@ -261,8 +281,8 @@ led_handler_status_t led_handler_inst (
     }
 
     /**************5.mount the enternal APIs*******************/
-    self->pf_led_controler    =  led_control;
-    self->pf_led_register     = led_register;
+    self->pf_handler_led_controler = handler_led_control;
+    self->pf_led_register          =        led_register;
 
     if (HANDLER_OK != ret)
     {

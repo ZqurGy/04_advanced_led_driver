@@ -406,6 +406,7 @@ void Test_led_handler (void)
                     &led_ops, 
                     &time_base_ms);
     led_test1.pf_led_controler(&led_test4, 2, 3, PROPORTION_ON_OFF_1_1);
+
 //**************************** Intergrated Test ***************************//
     led_index_t handler_index[4] = { LED_NOT_INITIALIZED };
     ret = handler1.pf_led_register(&handler1, &led_test1, &handler_index[0]);
@@ -423,6 +424,14 @@ void Test_led_handler (void)
         DEBUG_OUT("Error: Test handler failed!\r\n");
         return;
     }
+
+//********************* The external API for AP ***************************//
+    handler1.pf_handler_led_controler(&handler1,
+                                      handler_index[0],
+                                      5,
+                                      5,
+                                      PROPORTION_ON_OFF_1_1);
+
     DEBUG_OUT("Info: Test handler success!\r\n");
 }
 

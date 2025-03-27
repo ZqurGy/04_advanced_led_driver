@@ -89,15 +89,22 @@ typedef enum
 
 typedef struct bsp_led_handler_s bsp_led_handler_t;
 
+typedef struct
+{
+    uint32_t            cycle_time_ms;
+    uint32_t              blink_times;
+    proportion_t    proportion_on_off;
+} led_event_t;
+
 #ifdef OS_SUPPORTING
 typedef struct
 {
     /* Function to delay in microsecond  */
-    led_handler_status_t (*pf_os_delay_us)       (const uint32_t); 
+    led_handler_status_t (*pf_os_delay_us)       (const uint32_t us); 
     /* Function to delay in milliseconds */
-    led_handler_status_t (*pf_os_delay_ms)       (const uint32_t); 
+    led_handler_status_t (*pf_os_delay_ms)       (const uint32_t ms); 
     /* Function to delay in minute       */
-    led_handler_status_t (*pf_os_delay_mm)       (const uint32_t); 
+    led_handler_status_t (*pf_os_delay_mm)       (const uint32_t mm); 
 } handler_os_delay_t;
 
 typedef struct
@@ -171,11 +178,11 @@ typedef struct
 typedef struct
 {
     /* Function to get the time base in microsecond  */
-    led_handler_status_t (*pf_get_time_base_us) (uint32_t *const);
+    led_handler_status_t (*pf_get_time_base_us) (uint32_t *const us);
     /* Function to get the time base in milliseconds */
-    led_handler_status_t (*pf_get_time_base_ms) (uint32_t *const);
+    led_handler_status_t (*pf_get_time_base_ms) (uint32_t *const ms);
     /* Function to get the time base in minute       */
-    led_handler_status_t (*pf_get_time_base_mm) (uint32_t *const);
+    led_handler_status_t (*pf_get_time_base_mm) (uint32_t *const mm);
 } handler_time_base_t;
 
 typedef struct
@@ -185,17 +192,18 @@ typedef struct
 } instance_regiseted_t;
 
 typedef led_handler_status_t (*pf_handler_led_control_t) (
-                            bsp_led_driver_t  *const, //  Pointer to led driver
-                      const uint32_t                , //         Cycle time[ms]
-                      const uint32_t                , //     Blink times[times]
-                      const proportion_t              //      proportion_on_off
-                                         );
+                             bsp_led_handler_t *const             self,
+                       const led_index_t                     led_index,
+                       const uint32_t                    cycle_time_ms,
+                       const uint32_t                      blink_times,
+                       const proportion_t            proportion_on_off
+                                                         );
 
 typedef led_handler_status_t (*pf_led_register_t) (
-                            bsp_led_handler_t *const, // Pointer to led handler
-                            bsp_led_driver_t  *const, //  Pointer to led driver
-                            led_index_t       *const  // is a handler
-                                         );
+                            bsp_led_handler_t *const      self,
+                            bsp_led_driver_t  *const       led,
+                            led_index_t       *const led_index
+                                                  );
 
 typedef struct bsp_led_handler_s
 {
@@ -217,7 +225,7 @@ typedef struct bsp_led_handler_s
 
     /*****************External interfaces of the handler*********************/
     /* The API for AP                                  */
-    pf_led_control_t                    pf_led_controler;
+    pf_handler_led_control_t    pf_handler_led_controler;
     /* The API for internal led driver                 */
     pf_led_register_t                    pf_led_register;
 
@@ -247,7 +255,7 @@ led_handler_status_t led_handler_inst (
                             const handler_os_critical_t *const os_critical,
 #endif // End of OS_SUPPORTING
                             const handler_time_base_t   *const   time_base
-                            );
+                                      );
 
 
 //******************************** Declaring ********************************//
