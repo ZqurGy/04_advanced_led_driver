@@ -25,6 +25,7 @@
 
 //******************************** Includes *********************************//
 #include "bsp_led_handler.h"
+
 //******************************** Includes *********************************//
 
 
@@ -52,6 +53,27 @@ static led_handler_status_t __array_init(
     // TBD: check if memory is vaild.
 
     return ret;
+}
+
+static void handler_start_thread ( void * p_task_arg)
+{
+    DEBUG_OUT("--------------------------------------------\r\n");
+    DEBUG_OUT("Info: Enter handler_start_thread!\r\n");
+    /******************0.check target status******************/
+    DEBUG_OUT("Info: Enter handler_start_thread!\r\n");
+    /******************0.check target status******************/
+
+    /***************1.Check the input parameter***************/
+
+    /***************2.Start first thread *********************/
+
+    for (;;)
+    {
+        DEBUG_OUT("--------------------------------------------\r\n");
+        DEBUG_OUT("Info: handler_start_thread is running!\r\n");
+        osDelay(20000);
+    }
+
 }
 
 /**
@@ -94,8 +116,8 @@ static led_handler_status_t handler_led_control (
     /***************1.Check the input parameter***************/
     // 1-1. check if the led handler[index] is valid.
     if ( index < LED_HANDLER_NO_1                    ||
-         index >= MAX_INSTANCE_NUBER                 ||
-         index >= self->instances.led_instance_count
+         index >= self->instances.led_instance_count ||
+         index >= MAX_INSTANCE_NUBER
        )
     {
         DEBUG_OUT("Error: The led index is invalid!\r\n");
@@ -122,16 +144,23 @@ static led_handler_status_t handler_led_control (
     DEBUG_OUT("Info: Create a event!\r\n");
     led_event_t led_event = 
     {
+        .index             = index            ,
         .cycle_time_ms     = cycle_time_ms    ,
         .blink_times       = blink_times      ,
         .proportion_on_off = proportion_on_off,
     };
     // 2-2. send the event to the led queue.
+    DEBUG_OUT("Info: Send the event to the led queue!\r\n");
+    ret = self->p_os_queue_instance->pf_os_queue_put(self->p_os_queue_handler,
+                                                     (void *)&led_event      ,
+                                                     0                      );
+    if (HANDLER_OK != ret)
+    {
+        DEBUG_OUT("Error: Send the event to the led queue failed!\r\n");
+        return ret;
+    }
 
-
-
-
-
+    DEBUG_OUT("Info: led_control success!\r\n");
     return ret;
 }
 
@@ -179,7 +208,7 @@ static led_handler_status_t led_register (
     if ( NULL == index )
     {
         ret = HANDLER_ERRORPARAMETER;
-        DEBUG_OUT("Error: Parameter error! index is null~~\r\n");
+        DEBUG_OUT("Error: Parameter error! index is null!\r\n");
         return ret;
     }
     
@@ -231,6 +260,7 @@ led_handler_status_t led_handler_inst (
                             const handler_os_delay_t    *const    os_delay,
                             const handler_os_queue_t    *const    os_queue,
                             const handler_os_critical_t *const os_critical,
+                            const handler_os_thread_t   *const   os_thread,
 #endif // End of OS_SUPPORTING
                             const handler_time_base_t   *const   time_base
                             )
@@ -244,6 +274,7 @@ led_handler_status_t led_handler_inst (
 #ifdef OS_SUPPORTING
         (NULL == os_delay)  ||
         (NULL == os_queue)  ||
+        (NULL == os_thread) ||
 #endif // End of OS_SUPPORTING
         (NULL == time_base) 
        )
@@ -261,24 +292,52 @@ led_handler_status_t led_handler_inst (
         return ret;
     }
 
-    /************3.mount the target of internal IOs***********/
+    /*****3.mount external API to internal IOs of objcet******/
 #ifdef OS_SUPPORTING
     self->p_os_delay          =    os_delay;
     self->p_os_queue_instance =    os_queue;
     self->p_os_critical       = os_critical;
+    self->p_os_thread_instance =  os_thread;
 #endif // End of OS_SUPPORTING
     self->p_time_base         =   time_base;
 
     /************4.Init the led group of target***************/
+#ifdef OS_SUPPORTING
+    // 4.1 init os thread that will be used.
+    /*
+    TBD:
+        I think there is one problem here, should create a thread pool, 
+        instead of create a thread.
+        And p_os_thread_handler only point to one thread.
+    */
+    ret = self->p_os_thread_instance->pf_os_thread_create(
+                                                         handler_start_thread       ,
+                                                         NULL                       ,
+                                                         NULL                       ,
+                                                       &(self->p_os_thread_handler));
+    if (HANDLER_OK != ret)
+    {
+        DEBUG_OUT("Error: Create thread failed!\r\n");
+        self->p_os_thread_instance->pf_os_thread_delete(self->p_os_thread_handler);
+        return ret;
+    }
+    // 4.1 init os queue that will be used.
+    ret = self->p_os_queue_instance->pf_os_queue_create(
+                                                        10                          ,
+                                                        sizeof(led_event_t)         ,
+                                                      &(self->p_os_queue_handler));
+    if (HANDLER_OK != ret)
+    {
+        DEBUG_OUT("Error: Create queue failed!\r\n");
+        self->p_os_queue_instance->pf_os_queue_delete(self->p_os_queue_handler);
+        self->p_os_thread_instance->pf_os_thread_delete(self->p_os_thread_handler);
+        return ret;
+    }
+#endif // End of OS_SUPPORTING
+    // 4.2 init the led instance group.
     self->instances.led_instance_count =   LED_HANDLER_NO_1;
     ret = __array_init(self->instances.p_led_instance_group, 
                        MAX_INSTANCE_NUBER                 );
-    if(HANDLER_OK != ret)
-    {
-        DEBUG_OUT("Error: __array_init failed!");
-        DEBUG_OUT("Error HANDLER_ERRORNOMEMORY\r\n");
-        return ret;
-    }
 
     /**************5.mount the enternal APIs*******************/
     self->pf_handler_led_controler = handler_led_control;
@@ -286,12 +345,14 @@ led_handler_status_t led_handler_inst (
 
     if (HANDLER_OK != ret)
     {
-        DEBUG_OUT("Info: led_handler_inst failed!\r\n");
+        DEBUG_OUT("Error: Init led instance group failed!\r\n");
 
 #ifdef OS_SUPPORTING
         self->p_os_delay          = NULL;
         self->p_os_queue_instance = NULL;
         self->p_os_critical       = NULL;
+        self->p_os_thread_instance->pf_os_thread_delete(self->p_os_thread_handler);
+        self->p_os_queue_instance->pf_os_queue_delete(self->p_os_queue_handler);
 #endif // End of OS_SUPPORTING
         self->p_time_base         = NULL;
 

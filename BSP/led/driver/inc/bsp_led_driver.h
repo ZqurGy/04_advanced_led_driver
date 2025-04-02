@@ -39,7 +39,8 @@
 #define DEBUG_ON                    /* swtich of enable debug                */
 
 #ifdef DEBUG_ON
-#define DEBUG_OUT(X)    printf(X)   /* Debug output macro                    */
+#define DEBUG_OUT(format, ...)     \
+    printf(format, ##__VA_ARGS__)   /* Debug output macro                    */
 #else
 #define DEBUG_OUT(X)
 #endif

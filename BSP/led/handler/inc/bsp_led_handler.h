@@ -31,16 +31,19 @@
 #include "bsp_led_driver.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 //******************************** Includes *********************************//
 
 
 //******************************** Defines **********************************//
 
 #define OS_SUPPORTING               /* switch of enable OS supporting        */
+#define FREERTOS_SUPPORTING         /* switch of enable FreeRTOS supporting  */
 #define DEBUG_ON                    /* swtich of enable debug                */
 
-#ifdef DEBUG_ON
-#define DEBUG_OUT(X)    printf(X)   /* Debug output macro                    */
+#ifdef  DEBUG_ON
+#define DEBUG_OUT(format, ...)  \
+    printf(format, ##__VA_ARGS__)   /* Debug output macro                    */
 #else
 #define DEBUG_OUT(X)
 #endif
@@ -91,6 +94,7 @@ typedef struct bsp_led_handler_s bsp_led_handler_t;
 
 typedef struct
 {
+    led_index_t                 index;
     uint32_t            cycle_time_ms;
     uint32_t              blink_times;
     proportion_t    proportion_on_off;
@@ -145,29 +149,36 @@ typedef struct
                                                );
 } handler_os_queue_t;
 
+typedef union
+{
+    struct
+    {
+        const char *const name;
+        const uint16_t stack_depth;
+        const uint32_t priority;
+    } freeRTOS_attribute;
+
+} task_atrribute_t;
+
+typedef void (*TaskFunction_t)( void * );
+
 typedef struct
 {
+    /*
+    I think the atrribute that the thread created should be packed to a structure.
+    e.g. p_task_name, stack_depth, and priority.
+    so that it could be used in different OS.
+    */
     /* OS thread create */
     led_handler_status_t (*pf_os_thread_create) (
-                                            uint32_t const         item_num,
-                                            uint32_t const        item_size,
-                                            void   **const p_thread_handler
+                                    TaskFunction_t   const p_task_code     ,
+                            //   const char            *const p_task_name     ,
+                            //   const uint16_t               stack_depth     ,
+                                    void            *const p_task_arg      ,
+                            //   const uint32_t               priority        ,
+                              const void            *const p_task_attribute,
+                                    void           **const p_thread_handler
                                                 );
-
-    /* OS thread put    */
-    led_handler_status_t (*pf_os_thread_put   ) (
-                                            void    *const p_thread_handler,
-                                            void    *const           p_item,
-                                            uint32_t const          timeout
-                                                );
-    
-    /* OS thread get    */
-    led_handler_status_t (*pf_os_thread_get   ) (
-                                            void    *const p_thread_handler,
-                                            void    *const            p_meg,
-                                            uint32_t const          timeout
-                                                );
-
     /* OS thread delete */
     led_handler_status_t (*pf_os_thread_delete) (
                                             void    *const p_thread_handler
@@ -210,14 +221,19 @@ typedef struct bsp_led_handler_s
     /*****************Internal runtime data of Internal status***************/
     /* Target of Status                                */
     led_handler_init_t                         is_inited;
-    /* Regiseted instances for the handler             */
+    /* Regiseted instances                             */
     instance_regiseted_t                       instances;
+    /* OS queue's Handler                              */
+    void                             *p_os_queue_handler;
+    /* OS thread's Handler                             */
+    void                            *p_os_thread_handler;
 
     /*****************Internal interfaces of the handler*********************/
 #ifdef OS_SUPPORTING
     /* The APIs from OS layer                          */
     const handler_os_delay_t                 *p_os_delay;
     const handler_os_queue_t        *p_os_queue_instance;
+    const handler_os_thread_t      *p_os_thread_instance;
     const handler_os_critical_t           *p_os_critical;
 #endif // End of OS_SUPPORTING
     /* The APIs from Core layer                        */
@@ -253,6 +269,7 @@ led_handler_status_t led_handler_inst (
                             const handler_os_delay_t    *const    os_delay,
                             const handler_os_queue_t    *const    os_queue,
                             const handler_os_critical_t *const os_critical,
+                            const handler_os_thread_t   *const   os_thread,
 #endif // End of OS_SUPPORTING
                             const handler_time_base_t   *const   time_base
                                       );

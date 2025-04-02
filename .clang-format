@@ -87,9 +87,9 @@ AllowShortEnumsOnASingleLine: true
 AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: false
 # 允许短的函数放在同一行, 可选值: None, InlineOnly(定义在类中), Empty(空函数), Inline(定义在类中，空函数), All
-AllowShortFunctionsOnASingleLine: All
+AllowShortFunctionsOnASingleLine: None
 # 允许lambda在一行中, 同上, 建议All
-AllowShortLambdasOnASingleLine: All
+AllowShortLambdasOnASingleLine: None
 # 是否将简单的if(else/else if)语句中的body跟if(else/else if)放置于同一行，可选值
 # - Never: 永远不, 建议值
 # - WithoutElse: 没有else/else if时, 允许

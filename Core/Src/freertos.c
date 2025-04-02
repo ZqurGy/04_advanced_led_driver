@@ -336,6 +336,93 @@ handler_os_critical_t os_critical_handler =
     .pf_os_critical_exit  =  os_critical_exit,
 };
 
+
+/* OS thread create */
+led_handler_status_t pf_os_thread_create (
+                                TaskFunction_t   const p_task_code     ,
+                                void            *const p_task_arg      ,
+                          const void            *const p_task_attribute,
+                                void           **const p_thread_handler
+                                            )
+{
+    led_handler_status_t ret = HANDLER_OK;
+    DEBUG_OUT("Info: Enter pf_os_thread_create!\r\n");
+    task_atrribute_t task_atrribute = 
+    {
+#ifdef FREERTOS_SUPPORTING
+        .freeRTOS_attribute = {
+            .name        = "defaultTask_handler"          ,
+            .stack_depth = 128 * 4                        ,
+            // .priority    = (osPriority_t) osPriorityNormal, 
+            .priority    = 30
+/*
+Question:
+    1. why tasks are pass when priority is different with defaultTask?
+    2. why tasks are locked when priority is not different with defaultTask?
+Guess:
+    1. Someone of tasks should be hungry.
+*/
+        }
+#else
+        0
+#endif // end of FREERTOS_SUPPORTING
+    };
+    if ( NULL == p_task_code )
+    {
+        DEBUG_OUT("Error: Invalid task code!\r\n");
+        ret = HANDLER_ERRORPARAMETER;
+        return ret;
+    }
+
+    if ( NULL != p_task_attribute )
+    {
+        memcpy(&task_atrribute, p_task_attribute, sizeof(task_atrribute_t));
+    }
+
+#ifdef FREERTOS_SUPPORTING
+    if ( pdPASS != xTaskCreate(
+            (TaskFunction_t        )p_task_code                                  ,
+            (const char           *)task_atrribute.freeRTOS_attribute.name       ,
+            (configSTACK_DEPTH_TYPE)task_atrribute.freeRTOS_attribute.stack_depth,
+            (void                 *)p_task_arg                                   ,
+            (UBaseType_t           )task_atrribute.freeRTOS_attribute.priority   ,
+            (TaskHandle_t         *)p_thread_handler                             )
+       )
+    {
+        DEBUG_OUT("Error: Create thread failed!\r\n");
+        ret = HANDLER_ERRORRESOURCE;
+        return ret;
+    }
+#endif // end of FREERTOS_SUPPORTING
+
+    DEBUG_OUT("Info: Create thread success!\r\n");
+    return ret;
+}
+/* OS thread delete */
+led_handler_status_t pf_os_thread_delete (
+                                        void    *const p_thread_handler
+                                         )
+{
+    led_handler_status_t ret = HANDLER_OK;
+    DEBUG_OUT("Info: Enter pf_os_thread_delete!\r\n");
+    if ( NULL == p_thread_handler )
+    {
+        DEBUG_OUT("Error: Invalid thread handler!\r\n");
+        ret = HANDLER_ERRORPARAMETER;
+        return ret;
+    }
+
+    vTaskDelete( (TaskHandle_t)p_thread_handler );
+    
+    DEBUG_OUT("Info: Delete thread success!\r\n");
+    return ret;
+}
+handler_os_thread_t os_thread_handler = 
+{
+    .pf_os_thread_create = pf_os_thread_create,
+    .pf_os_thread_delete = pf_os_thread_delete,
+};
+
 led_handler_status_t get_time_base_ms (uint32_t *const time_stamp)
 {
     led_handler_status_t ret = HANDLER_OK;
@@ -365,12 +452,14 @@ handler_time_base_t time_base_handler =
 void Test_led_handler (void)
 {
 //******************************** Handler ********************************//
+    DEBUG_OUT("Begin: --------- Test led handler inst -------------\r\n");
     led_handler_status_t ret = HANDLER_OK;
     bsp_led_handler_t handler1;
     ret = led_handler_inst(&handler1           , 
                            &os_delay_handler   , 
                            &os_queue_handler   , 
                            &os_critical_handler,
+                           &os_thread_handler  ,
                            &time_base_handler );
     
     if ( HANDLER_OK != ret )
@@ -378,36 +467,36 @@ void Test_led_handler (void)
         DEBUG_OUT("Error: Construct handler failed!\r\n");
         return;
     }
+    DEBUG_OUT("End  : --------- Test led handler inst -------------\r\n\r\n");
 //******************************** Driver *********************************//
+    DEBUG_OUT("Begin: ---------- Test led driver inst -------------\r\n");
     bsp_led_driver_t led_test1;
     led_driver_inst(&led_test1, 
                     &os_delay_ms, 
                     &led_ops, 
                     &time_base_ms);
-    led_test1.pf_led_controler(&led_test1, 5, 5, PROPORTION_ON_OFF_1_1);
 
     bsp_led_driver_t led_test2;
     led_driver_inst(&led_test2, 
                     &os_delay_ms, 
                     &led_ops, 
                     &time_base_ms);
-    led_test1.pf_led_controler(&led_test2, 8, 7, PROPORTION_ON_OFF_1_1);
 
     bsp_led_driver_t led_test3;
     led_driver_inst(&led_test3, 
                     &os_delay_ms, 
                     &led_ops, 
                     &time_base_ms);
-    led_test1.pf_led_controler(&led_test3, 6, 7, PROPORTION_ON_OFF_1_1);
 
     bsp_led_driver_t led_test4;
     led_driver_inst(&led_test4, 
                     &os_delay_ms, 
                     &led_ops, 
                     &time_base_ms);
-    led_test1.pf_led_controler(&led_test4, 2, 3, PROPORTION_ON_OFF_1_1);
 
+    DEBUG_OUT("End  : ---------- Test led driver inst -------------\r\n\r\n");
 //**************************** Intergrated Test ***************************//
+    DEBUG_OUT("Begin: --------- Test handler register -------------\r\n");
     led_index_t handler_index[4] = { LED_NOT_INITIALIZED };
     ret = handler1.pf_led_register(&handler1, &led_test1, &handler_index[0]);
     ret = handler1.pf_led_register(&handler1, &led_test2, &handler_index[1]);
@@ -416,7 +505,7 @@ void Test_led_handler (void)
 
     for (uint8_t i = 0; i < 4; i++)
     {
-        printf("handler_index[%d] = [%d]\r\n", i + 1, handler_index[i]);
+        printf("handler_index[%d] = [%d]\r\n", i, handler_index[i]);
     }
 
     if ( HANDLER_OK != ret )
@@ -425,13 +514,16 @@ void Test_led_handler (void)
         return;
     }
 
+    DEBUG_OUT("End  : --------- Test handler register -------------\r\n\r\n");
 //********************* The external API for AP ***************************//
+    DEBUG_OUT("Begin: --------- Test handler controler ------------\r\n");
     handler1.pf_handler_led_controler(&handler1,
                                       handler_index[0],
                                       5,
                                       5,
                                       PROPORTION_ON_OFF_1_1);
 
+    DEBUG_OUT("End  : --------- Test handler controler ------------\r\n\r\n");
     DEBUG_OUT("Info: Test handler success!\r\n");
 }
 
@@ -503,7 +595,9 @@ void StartDefaultTask(void *argument)
 
     for (;;)
     {
-        osDelay(1);
+        DEBUG_OUT("Info: StartDefaultTask!\r\n");
+
+        osDelay(10000);
     }
     /* USER CODE END StartDefaultTask */
 }
