@@ -21,7 +21,7 @@
 #Keil Project screen layout file
 *.uvguix.*
 *.uvgui.*
-
+*.uvoptx*
 #JLINK file
 JLinkLog.txt
 *.dbgconf

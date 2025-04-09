@@ -22,7 +22,7 @@
 #include "queue.h"
 #include "task.h"
 #include "main.h"
-#include "cmsis_os.h"
+#include "cmsis_os2.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -53,7 +53,7 @@
 osThreadId_t         defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
     .name       = "defaultTask",
-    .stack_size = 128 * 4,
+    .stack_size = 512 * 4, /* 128 words */
     .priority   = (osPriority_t)osPriorityNormal,
 };
 
@@ -350,11 +350,11 @@ led_handler_status_t pf_os_thread_create (
     task_atrribute_t task_atrribute = 
     {
 #ifdef FREERTOS_SUPPORTING
-        .freeRTOS_attribute = {
+        .freeRTOS_attribute = 
+        {
             .name        = "defaultTask_handler"          ,
-            .stack_depth = 128 * 4                        ,
-            // .priority    = (osPriority_t) osPriorityNormal, 
-            .priority    = 30
+            .stack_depth = 512 * 4                        ,
+            .priority    = (osPriority_t) osPriorityNormal, 
 /*
 Question:
     1. why tasks are pass when priority is different with defaultTask?
@@ -525,6 +525,8 @@ void Test_led_handler (void)
 
     DEBUG_OUT("End  : --------- Test handler controler ------------\r\n\r\n");
     DEBUG_OUT("Info: Test handler success!\r\n");
+
+    while(1);
 }
 
 /**********************unit test for led handler -- begin*******************/
@@ -592,12 +594,12 @@ void StartDefaultTask(void *argument)
     DEBUG_OUT("Info: StartDefaultTask!\r\n");
     // Test_led_driver();
     Test_led_handler();
+    static uint32_t start_count = 0;
 
     for (;;)
     {
-        DEBUG_OUT("Info: StartDefaultTask!\r\n");
-
-        osDelay(10000);
+        start_count ++;
+        osDelay(100);
     }
     /* USER CODE END StartDefaultTask */
 }

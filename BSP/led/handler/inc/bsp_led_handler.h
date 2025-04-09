@@ -32,6 +32,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <cmsis_os2.h>
 //******************************** Includes *********************************//
 
 
@@ -155,7 +156,7 @@ typedef union
     {
         const char *const name;
         const uint16_t stack_depth;
-        const uint32_t priority;
+        const osPriority_t priority;
     } freeRTOS_attribute;
 
 } task_atrribute_t;

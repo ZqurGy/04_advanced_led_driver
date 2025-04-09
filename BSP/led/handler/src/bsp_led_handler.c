@@ -25,7 +25,7 @@
 
 //******************************** Includes *********************************//
 #include "bsp_led_handler.h"
-
+#include "cmsis_os2.h"
 //******************************** Includes *********************************//
 
 
@@ -57,21 +57,34 @@ static led_handler_status_t __array_init(
 
 static void handler_start_thread ( void * p_task_arg)
 {
-    DEBUG_OUT("--------------------------------------------\r\n");
+    osDelay(2000);
     DEBUG_OUT("Info: Enter handler_start_thread!\r\n");
     /******************0.check target status******************/
-    DEBUG_OUT("Info: Enter handler_start_thread!\r\n");
-    /******************0.check target status******************/
-
+    led_handler_status_t ret = HANDLER_OK;
+    bsp_led_handler_t * p_led_handler = NULL;
+    led_event_t         message       = {0U} ;
+    static uint32_t thread_count      = 0   ;
     /***************1.Check the input parameter***************/
+    if ( NULL != p_task_arg )
+    {
+        p_led_handler = (bsp_led_handler_t *) p_task_arg;
+    }
 
     /***************2.Start first thread *********************/
-
     for (;;)
     {
-        DEBUG_OUT("--------------------------------------------\r\n");
-        DEBUG_OUT("Info: handler_start_thread is running!\r\n");
-        osDelay(20000);
+        thread_count++;
+        ret = p_led_handler->p_os_queue_instance->pf_os_queue_get(  
+                                        p_led_handler->p_os_queue_handler,
+                                        (void *)&message                 ,
+                                        0
+                                                                 );
+        if ( HANDLER_OK == ret )
+        {
+            DEBUG_OUT("Info: Get the message from the led queue!\r\n");
+        }
+
+        osDelay(2000);
     }
 
 }
@@ -311,10 +324,10 @@ led_handler_status_t led_handler_inst (
         And p_os_thread_handler only point to one thread.
     */
     ret = self->p_os_thread_instance->pf_os_thread_create(
-                                                         handler_start_thread       ,
-                                                         NULL                       ,
-                                                         NULL                       ,
-                                                       &(self->p_os_thread_handler));
+                                           handler_start_thread       ,
+                                           self                       ,
+                                           NULL                       ,
+                                         &(self->p_os_thread_handler));
     if (HANDLER_OK != ret)
     {
         DEBUG_OUT("Error: Create thread failed!\r\n");
@@ -323,14 +336,16 @@ led_handler_status_t led_handler_inst (
     }
     // 4.1 init os queue that will be used.
     ret = self->p_os_queue_instance->pf_os_queue_create(
-                                                        10                          ,
-                                                        sizeof(led_event_t)         ,
-                                                      &(self->p_os_queue_handler));
+                                         10                          ,
+                                         sizeof(led_event_t)         ,
+                                       &(self->p_os_queue_handler));
     if (HANDLER_OK != ret)
     {
         DEBUG_OUT("Error: Create queue failed!\r\n");
-        self->p_os_queue_instance->pf_os_queue_delete(self->p_os_queue_handler);
-        self->p_os_thread_instance->pf_os_thread_delete(self->p_os_thread_handler);
+        self->p_os_queue_instance->pf_os_queue_delete(
+                                            self->p_os_queue_handler);
+        self->p_os_thread_instance->pf_os_thread_delete(
+                                            self->p_os_thread_handler);
         return ret;
     }
 #endif // End of OS_SUPPORTING
