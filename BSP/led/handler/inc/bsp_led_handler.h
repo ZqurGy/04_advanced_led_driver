@@ -49,7 +49,8 @@
 #define DEBUG_OUT(X)
 #endif
 
-#define INIT_PATTERN  (0xA6A6A6A6)  /* Initialization pattern                */
+/* Initialization pattern                */
+#define INIT_PATTERN  (bsp_led_driver_t*)(0xA6A6A6A6)
                                     
 
 typedef enum

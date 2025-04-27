@@ -28,3 +28,4 @@ JLinkLog.txt
 
 .vscode
 04_advanced_led_driver.code-workspace
+*.scvd*

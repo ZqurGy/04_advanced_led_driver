@@ -497,6 +497,7 @@ void Test_led_handler (void)
     DEBUG_OUT("End  : ---------- Test led driver inst -------------\r\n\r\n");
 //**************************** Intergrated Test ***************************//
     DEBUG_OUT("Begin: --------- Test handler register -------------\r\n");
+    // mov LED_NOT_INITIALIZED dword ptr [handler_index] -- 线程1
     led_index_t handler_index[4] = { LED_NOT_INITIALIZED };
     ret = handler1.pf_led_register(&handler1, &led_test1, &handler_index[0]);
     ret = handler1.pf_led_register(&handler1, &led_test2, &handler_index[1]);
@@ -517,11 +518,31 @@ void Test_led_handler (void)
     DEBUG_OUT("End  : --------- Test handler register -------------\r\n\r\n");
 //********************* The external API for AP ***************************//
     DEBUG_OUT("Begin: --------- Test handler controler ------------\r\n");
+    // so handler_index[0] is invalid.
     handler1.pf_handler_led_controler(&handler1,
-                                      handler_index[0],
+                                      handler_index[0], // 线程2, 优先于线程1执行
                                       5,
                                       5,
                                       PROPORTION_ON_OFF_1_1);
+    for (;;)
+    {
+        handler1.pf_handler_led_controler(&handler1,
+                                          handler_index[1],
+                                          2,
+                                          1,
+                                          PROPORTION_ON_OFF_1_1);
+        handler1.pf_handler_led_controler(&handler1,
+                                          handler_index[2],
+                                          1,
+                                          1,
+                                          PROPORTION_ON_OFF_1_2);
+        handler1.pf_handler_led_controler(&handler1,
+                                          handler_index[3],
+                                          3,
+                                          2,
+                                          PROPORTION_ON_OFF_1_3);
+        osDelay(3000);
+    }
 
     DEBUG_OUT("End  : --------- Test handler controler ------------\r\n\r\n");
     DEBUG_OUT("Info: Test handler success!\r\n");

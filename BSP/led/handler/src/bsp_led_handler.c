@@ -48,13 +48,141 @@ static led_handler_status_t __array_init(
     DEBUG_OUT("Info: Enter __array_init!\r\n");
     for (int led_number = 0; led_number < led_size; ++ led_number)
     {
-        p_led_instance_group[led_number] = (bsp_led_driver_t *) INIT_PATTERN;
+        p_led_instance_group[led_number] = INIT_PATTERN;
     }
     // TBD: check if memory is vaild.
 
     return ret;
 }
 
+static led_handler_status_t led_blink(bsp_led_driver_t *const self) 
+{
+    led_handler_status_t ret = HANDLER_OK;
+    DEBUG_OUT("Info: Enter led_blink!\r\n");
+
+    // 1. check if the target has been initialized.
+    if (
+        NULL     == self                  ||
+        LED_NOT_INITED == self->is_inited
+       )
+    {
+        DEBUG_OUT("Error: The driver has not been initialized!\r\n");
+        ret = HANDLER_ERRORRESOURCE;
+        return ret;
+    }
+
+    {
+        // 2. analyze the target's parameters.
+        // 2-1. save target's parameters to local variables.
+        uint32_t     cycle_time_local        =     self->cycle_time_ms;
+        uint32_t     blink_times_total       =       self->blink_times;
+        proportion_t proportion_on_off_local = self->proportion_on_off;
+        
+        // 2-2. calculate the proportion time of led on and off.
+        uint32_t     led_toggle_time         =              0x5a5a5a5a;
+        switch (proportion_on_off_local)
+        {
+            case PROPORTION_ON_OFF_1_1:
+                led_toggle_time = cycle_time_local / 2;
+                break;
+            case PROPORTION_ON_OFF_1_2:
+                led_toggle_time = cycle_time_local / 3;
+                break;
+            case PROPORTION_ON_OFF_1_3:
+                led_toggle_time = cycle_time_local / 4;
+                break;
+            default:
+                DEBUG_OUT("\
+                    calculate the proportion time of led on and off failed!\r\n");
+                ret = HANDLER_ERRORPARAMETER;
+                return ret;
+        }
+
+        // 3. run the operation of led.
+        for (
+             uint32_t blink_number = 0; 
+             blink_number < blink_times_total; 
+             ++ blink_number
+            ) 
+        {
+            for (
+                uint32_t start_cycyle_time = 0;
+                start_cycyle_time < cycle_time_local;
+                ++ start_cycyle_time
+                )
+            {
+                if (start_cycyle_time >= led_toggle_time)
+                {
+                    self->p_led_opes->pf_led_off();
+                }
+                else
+                {
+                    self->p_led_opes->pf_led_on();
+                }
+            }
+        }
+    }
+
+    return ret;
+}
+
+static led_handler_status_t __event_process(
+                            bsp_led_handler_t *const self,
+                            led_event_t       *const p_msg
+                                           )
+{
+    led_handler_status_t ret = HANDLER_OK;
+    bsp_led_driver_t *p_led_instance = NULL;
+    DEBUG_OUT("Info: Enter __event_process!\r\n");
+
+    if ( NULL == self || NULL == p_msg )
+    {
+        DEBUG_OUT("Error: The handler or message is invalid!\r\n");
+        ret = HANDLER_ERRORPARAMETER;
+        return ret;
+    }
+
+    if ((p_msg->index < LED_HANDLER_NO_1                    ||
+         p_msg->index >= self->instances.led_instance_count ||
+         p_msg->index >= MAX_INSTANCE_NUBER
+        )                                                   &&
+         p_msg->index != LED_NOT_INITIALIZED 
+       )
+    {
+        DEBUG_OUT("Error: The led index is invalid!\r\n");
+        ret = HANDLER_ERRORPARAMETER;
+        return ret;
+    }
+    
+    if ( INIT_PATTERN == self->instances.p_led_instance_group[p_msg->index] )
+    {
+        DEBUG_OUT("Error: The led instance has not been initialized!\r\n");
+        ret = HANDLER_ERRORRESOURCE;
+        return ret;
+    }
+    DEBUG_OUT("Info: Cycle time = %d, Blink times = %d, Proportion = %d\r\n",
+              p_msg->cycle_time_ms,
+              p_msg->blink_times,
+              p_msg->proportion_on_off);
+    p_led_instance = self->instances.p_led_instance_group[p_msg->index];
+    p_led_instance->cycle_time_ms     =     p_msg->cycle_time_ms;
+    p_led_instance->blink_times       =       p_msg->blink_times;
+    p_led_instance->proportion_on_off = p_msg->proportion_on_off;
+
+    if ( HANDLER_OK != led_blink(
+                    self->instances.p_led_instance_group[p_msg->index]
+                                )
+       )
+    {
+        DEBUG_OUT("Error: The led blink failed!\r\n");
+        ret = HANDLER_ERRORRESOURCE;
+        return ret;
+    }
+    DEBUG_OUT("Info: The led blink success!\r\n");
+    
+    return ret;
+    
+}
 static void handler_start_thread ( void * p_task_arg)
 {
     osDelay(2000);
@@ -81,10 +209,11 @@ static void handler_start_thread ( void * p_task_arg)
                                                                  );
         if ( HANDLER_OK == ret )
         {
+            __event_process(p_led_handler, &message);
             DEBUG_OUT("Info: Get the message from the led queue!\r\n");
         }
 
-        osDelay(2000);
+        osDelay(1000);
     }
 
 }
@@ -148,8 +277,9 @@ static led_handler_status_t handler_led_control (
         (proportion_on_off >= PROPORTION_ON_OFF_NUM)
        )
     {
-        DEBUG_OUT("Error: Parameter error!\r\n");
+        DEBUG_OUT("Error: handler_led_control Parameter error!\r\n");
         ret = HANDLER_ERRORPARAMETER;
+        return ret;
     }
 
     /***************2.Send event to LED queue*****************/
@@ -292,7 +422,7 @@ led_handler_status_t led_handler_inst (
         (NULL == time_base) 
        )
     {
-        DEBUG_OUT("Error: Parameter error!\r\n");
+        DEBUG_OUT("Error: led_handler_inst Parameter error!\r\n");
         ret = HANDLER_ERRORPARAMETER;
         return ret;
     } 

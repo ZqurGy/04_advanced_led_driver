@@ -29,6 +29,7 @@
 
 
 //******************************** Defines **********************************//
+#ifndef OS_SUPPORTING
 /**
  * @brief 
  * 
@@ -111,7 +112,9 @@ static led_status_t led_blink(bsp_led_driver_t *const self)
 
     return ret;
 }
+#endif // End of OS_SUPPORTING
 
+#ifndef OS_SUPPORTING
 /**
  * @brief Link led_control to the enternal APIs of target.
  * 
@@ -176,6 +179,8 @@ static led_status_t led_control (
 
     return ret;
 }
+#endif // End of OS_SUPPORTING
+
 /**
  * @brief help constructor led_driver_inst to initialize led's Power-on status.
  * 
@@ -273,8 +278,10 @@ led_status_t led_driver_inst (
     self->proportion_on_off = PROPORTION_ON_OFF_x_x;
 
     /**************5.Link the enternal APIs*******************/
-    self->pf_led_controler = led_control;
+#ifndef OS_SUPPORTING
 
+    self->pf_led_controler = led_control;
+#endif // End of OS_SUPPORTING
     ret = led_driver_init(self);
 
     if (LED_OK != ret)
