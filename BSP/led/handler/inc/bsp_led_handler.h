@@ -35,7 +35,6 @@
 #include <cmsis_os2.h>
 //******************************** Includes *********************************//
 
-
 //******************************** Defines **********************************//
 
 #define OS_SUPPORTING               /* switch of enable OS supporting        */

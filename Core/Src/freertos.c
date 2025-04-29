@@ -60,6 +60,7 @@ const osThreadAttr_t defaultTask_attributes = {
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 
+#if 0
 /**********************unit test for led driver -- begin********************/
 /**
  * @brief  Simulated OS delay function for unit testing
@@ -444,6 +445,7 @@ handler_time_base_t time_base_handler =
     .pf_get_time_base_ms = get_time_base_ms,
 };
 
+
 /**
  * @brief  Unit test for bsp_led_handler_t.
  * @param  None
@@ -551,7 +553,7 @@ void Test_led_handler (void)
 }
 
 /**********************unit test for led handler -- begin*******************/
-
+#endif // End of 0
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
@@ -614,7 +616,7 @@ void StartDefaultTask(void *argument)
     /* unit test for led driver         */
     DEBUG_OUT("Info: StartDefaultTask!\r\n");
     // Test_led_driver();
-    Test_led_handler();
+    // Test_led_handler();
     static uint32_t start_count = 0;
 
     for (;;)
